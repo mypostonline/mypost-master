@@ -1,21 +1,16 @@
+const ModbusRTU = require('modbus-serial');
 const readline = require('readline');
-const ModbusRTU = require("modbus-serial");
+const { addresses } = require('../../addresses');
+
 const host = '127.0.0.1';
 const port = process.argv[2] !=undefined  ? process.argv[2] : 8502;
 const unitID = process.argv[3] !=undefined  ? +process.argv[3] : 1;
+const myCoils = new Map();
 
-let addressCoil;
-const myCoils = new Map([
-    [3072, 0], // PROGRAM0 0x0C00
-    [3073, 0], // PROGRAM1 0x0C01
-    [3074, 0], // PROGRAM2 0x0C02
-    [3075, 0], // PROGRAM3 0x0C03
-    [3076, 0], // BARRIER  0x0C04
-    [3077, 0], // TRAFFIC_LIGHT 0x0C05
-    [3078, 0], // GATE 0x0C06
-    [3079, 0], // OPERATOR 0x0C07
-    [3082, 0]  // ROBOT_STATUS 0x0C0A
-]);
+for (const [command, address] of Object.entries(addresses)) {
+    myCoils.set(address, 0);
+}
+
 
 const toggleCoil = (addr) => {
     myCoils.set(addr, myCoils.get(addr) ? 0 : 1);
@@ -41,7 +36,7 @@ const vector = {
                 const coilState = myCoils.get(addr);
                 console.log(`Состояние регистра ${addr} = ${coilState}`);
                 resolve(coilState);
-            }, 1000);
+            }, 10);
         });
     },
     setRegister: function(addr, value, unitID) {
@@ -65,21 +60,29 @@ const vector = {
     }
 };
 
-console.log(`ModbusTCP ID=${unitID} listening on modbus://${host}:${port}`);
 const serverTCP = new ModbusRTU.ServerTCP(vector, { host: host, port: port, debug: true, unitID: unitID });
+console.log(`ModbusTCP ID=${unitID} listening on modbus://${host}:${port}`);
 
-serverTCP.on("socketError", function(err){
+serverTCP.on('socketError', err => {
     console.error('socketError', err);
 });
+
 
 readline.emitKeypressEvents(process.stdin);
 if (process.stdin.isTTY) {
     process.stdin.setRawMode(true);
 }
 process.stdin.on('keypress', (str, key) => {
-    if (str === '1') {
-        toggleCoil(3082);
-        console.log(`toggleCoil`, myCoils.get(3082));
+    const index = parseInt(str, 16);
+    if (!isNaN(index)) {
+        let idx = 0;
+        for (const [command, address] of Object.entries(addresses)) {
+            if (index === idx) {
+                toggleCoil(address);
+                console.log(address, command, myCoils.get(address));
+            }
+            idx++;
+        }
     }
     if (key.sequence === '\u0003') {
         process.exit();

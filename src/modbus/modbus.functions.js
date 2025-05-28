@@ -18,23 +18,53 @@ const readCoil = async (client, address) => new Promise((resolve, reject) => {
 })
 module.exports.readCoil = readCoil;
 
-const writeCoil = (client, address, state) => new Promise((resolve, reject) => {
+const readCoils = async (client, addresses) => new Promise((resolve, reject) => {
+    addresses.sort();
+    const first = addresses[0];
+    const last  = addresses[addresses.length - 1];
+    const count = last - first + 1;
+    const coilsAddresses = new Map();
+    let address = first;
+    for (let i=0; i<count; i++) {
+        if (addresses.indexOf(address) !== -1) {
+            coilsAddresses.set(i, address);
+        }
+        address++;
+    }
+    client.readCoils(first, count, (err, data) => {
+        if (err) reject(err);
+        const result = new Map();
+        for (let i=0; i<data?.data?.length; i++) {
+            const address = coilsAddresses.get(i);
+            if (address !== undefined) {
+                result.set(address, data?.data?.[i] ? 1 : 0);
+            }
+        }
+        resolve(result);
+    });
+})
+module.exports.readCoils = readCoils;
+
+const writeCoil = (client, address, state, timeout = null) => new Promise((resolve, reject) => {
     client.writeCoil(address, state, (err, data) => {
         if (err) {
             reject(err);
         }
         resolve(data);
+        if (state && timeout) {
+            setTimeout(async () => await writeCoil(client, address, 0), timeout);
+        }
     });
 })
 module.exports.writeCoil = writeCoil;
 
-const waitCoil = async (client, address, state, { interval = 500, timeout = 10000 } = {}) => {
+const waitCoil = async (client, address, state, { interval = 500, timeout = 3600000 } = {}) => {
     const deadline = Date.now() + timeout;
     while (Date.now() < deadline) {
         try {
             const current = await readCoil(client, address);
-            if (current === state) {
-                return true;
+            if (!!current === !!state) {
+                return current;
             }
         }
         catch (err) {
@@ -45,6 +75,35 @@ const waitCoil = async (client, address, state, { interval = 500, timeout = 1000
     throw new Error(`Timeout: состояние ${state} на адресе ${address} не достигнуто за ${timeout}ms`);
 }
 module.exports.waitCoil = waitCoil;
+
+const waitCoils = async (client, map, { interval = 500, timeout = 3600000 } = {}) => {
+    const addresses = Array.from(map.keys());
+    if (!addresses.length) {
+        return false;
+    }
+    const deadline = Date.now() + timeout;
+    while (Date.now() < deadline) {
+        try {
+            let isReached = true;
+            const states = await readCoils(client, addresses);
+            for (const [address, state] of map) {
+                if (!!states.get(address) !== !!state) {
+                    isReached = false;
+                }
+            }
+            if (isReached) {
+                return true;
+            }
+        }
+        catch (err) {
+            throw new Error(`Ошибка чтения coils`);
+        }
+        await new Promise(res => setTimeout(res, interval));
+    }
+    throw new Error(`Timeout: состояния не достигнуто за ${timeout}ms`);
+}
+module.exports.waitCoils = waitCoils;
+
 
 /*
 const checkState = async (client, states) => {

@@ -1,75 +1,72 @@
 const ModbusRTU = require('modbus-serial');
-const { initModbus } = require('../modbus/modbus.service');
-const { readInput, readCoil, writeCoil, checkState, sendCommands } = require('../modbus/modbus.functions');
+const readline = require('readline');
+const { readCoil, readCoils, writeCoil } = require('../modbus/modbus.functions');
+const { addresses } = require('../../addresses');
 
 // const ip = '192.168.1.111';
 // const port = 502;
 const ip = '127.0.0.1';
 const port = 8502;
-const dataAddress = 0x0C00;
-
-//void check();
 
 
 const client = new ModbusRTU();
+client.setID(1);
 client.connectTCP(ip, { port: port }, async () => {
-    //sendModbusCommand();
+    await pollingModbus();
+    await runReadline();
+});
+
+let prevState = [];
+const pollingModbus = async () => {
     try {
-        /*
-        const aa = await sendCommands(client, [
-            {
-                "post_id": 1,
-                "address": "0x0C00",
-                "state": 1,
-                "check": { "0x0C0A": 1 },
-                "start": 1000,
-                "duration": 2000
-            },
-            {
-                "post_id": 1,
-                "address": "0x0C01",
-                "state": 1,
-                "start": 1500,
-                "duration": 2000
+        const map = new Map();
+        const addressesCoils = [];
+        for (const [command, address] of Object.entries(addresses)) {
+            map.set(address, command);
+            addressesCoils.push(address);
+        }
+        const state = [];
+        const states = await readCoils(client, addressesCoils);
+        for (const [address, command] of map) {
+            const value = states.get(address);
+            if (value !== undefined) {
+                state.push({ address, command, value });
             }
-        ]);
-        console.log( 'sendCommands', aa );
-        */
-
-        //const сheck = await checkState(client, { "0x0C0A": 1 });
-        //console.log( 'сheck', сheck );
-        console.log('readCoil', await readCoil(client, dataAddress));
-
-        //const read = await readInput(client, "0x0C0A");
-        //console.log('readState', read);
-
-        //console.log('readCoil', await readCoil(client, "0x0C00"));
-
-        /*
-        await client.readInputRegisters("0x0C0A", 1, (err, data) => {
-            if (err) {
-                console.log(err);
-            }
-            else {
-                console.log('readInputRegisters', data?.data[0] ? 1 : 0);
-            }
-        });
-        */
-
-        /*
-        setInterval(async () => {
-            //const read = await readInput(client, "0x0C0A");
-            //console.log('readState', read);
-            console.log('readCoil', await readCoil(client, "0x0C0A"));
-        }, 1000);
-        */
-
-        // const write = await writeCoil(client, "0x0C00", 1);
-        // console.log('writeState', write);
-
+        }
+        if (JSON.stringify(state) !== JSON.stringify(prevState)) {
+            prevState = state;
+            console.log(new Date(), 'Состояние изменилось');
+            console.table(state);
+        }
     }
     catch (err) {
-        console.error("Ошибка:", err);
+        console.error('Ошибка:', err.message);
     }
-});
-client.setID(1);
+    finally {
+        setTimeout(pollingModbus, 1000);
+    }
+}
+
+const runReadline = async () => {
+    const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+        prompt: '> '
+    });
+    rl.prompt();
+    rl.on('line', async (line) => {
+        const number = parseInt(line);
+        if (!isNaN(number)) {
+            let index = 0;
+            for (const [command, address] of Object.entries(addresses)) {
+                if (number === index) {
+                    const state = await readCoil(client, address);
+                    const timeout = null;
+                    await writeCoil(client, address, state ? 0 : 1, timeout);
+                    console.log(address, command, state);
+                }
+                index++;
+            }
+        }
+    });
+}
