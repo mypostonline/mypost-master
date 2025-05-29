@@ -1,7 +1,6 @@
 const io = require('socket.io-client');
 const { getSocket } = require('./socket.functions');
 const { sendPostCommands, runStartOrder } = require('../modbus/modbus.service');
-// const { startOrder } = require('../../run');
 
 
 const initSocket = async () => {

@@ -1,5 +1,6 @@
 const ModbusRTU = require("modbus-serial");
 const { readCoil, readCoils } = require('../modbus/modbus.functions');
+const { addresses } = require('../../addresses');
 
 // const ip = '192.168.1.111';
 // const port = 502;
@@ -15,8 +16,15 @@ client.connectTCP(ip, { port: port }, async () => {
         // const state =  await readCoil(client, address);
         // console.log(`Значение ${address}`, state);
 
-        const states = await readCoils(client, [ 0x0C0A, 0x0C07, 0x0C0B, 0x0C0C, 0x0C0D, 0x0C0E, 0x0C0F, 0x0C10 ]);
-        console.log(`Значения`, states );
+        const { SENSOR_0, SENSOR_1 } = await readCoils(client, {
+            SENSOR_0: addresses.SENSOR_0,
+            SENSOR_1: addresses.SENSOR_1
+        });
+        //const states = await readCoils(client, [addresses.SENSOR_0, addresses.SENSOR_1]);
+        console.log(`Значения`, SENSOR_0, SENSOR_1 );
+        //const [ [,SENSOR_0], [,SENSOR_1] ] = await readCoils(client, [addresses.SENSOR_0, addresses.SENSOR_1], addresses);
+        //console.log(`Значения`, SENSOR_0,SENSOR_1 );
+        //console.log(`Значения`, JSON.stringify(states) );
 
         client.close();
     }

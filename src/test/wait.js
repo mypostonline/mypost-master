@@ -2,6 +2,9 @@ const ModbusRTU = require("modbus-serial");
 const { waitCoil, waitCoils } = require('../modbus/modbus.functions');
 const { addresses } = require('../../addresses');
 
+const code = 'PROGRAM_0';
+console.log( addresses[ code ] );
+
 // const ip = '192.168.1.111';
 // const port = 502;
 const ip = '127.0.0.1';

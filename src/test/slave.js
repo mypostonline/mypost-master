@@ -34,7 +34,7 @@ const vector = {
         return new Promise(function(resolve) {
             setTimeout(function() {
                 const coilState = myCoils.get(addr);
-                console.log(`Состояние регистра ${addr} = ${coilState}`);
+                //console.log(`Состояние регистра ${addr} = ${coilState}`);
                 resolve(coilState);
             }, 10);
         });

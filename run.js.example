@@ -1,0 +1,65 @@
+const { readCoil, writeCoil, waitCoils, readCoils} = require('./src/modbus/modbus.functions');
+const { addresses } = require('./addresses');
+
+
+module.exports.getPostState = async (post) => {
+    if (post?.client) {
+        const client = post.client;
+        try {
+            const { SENSOR_0, SENSOR_1 } = await readCoils(client, {
+                SENSOR_0: addresses.SENSOR_0,
+                SENSOR_1: addresses.SENSOR_1
+            });
+            return {
+                is_busy: !!(SENSOR_0 || SENSOR_1),
+            };
+        }
+        catch (err) {
+            throw err;
+        }
+    }
+}
+
+module.exports.startOrder = async (post, data) => {
+    console.log( 'startOrder', data );
+    if (post?.client && data?.program_code) {
+        if (addresses[ data.program_code ]) {
+            const client = post.client;
+            const program_address = addresses[ data.program_code ];
+            try {
+                await waitCoils(client, new Map([
+                    [addresses.SENSOR_0, 0],
+                    [addresses.SENSOR_1, 0],
+                ]));
+                await writeCoil(client, program_address, 1, 6000);
+                await writeCoil(client, addresses.GATE_0_UP, 1, 6000);
+                return true;
+            }
+            catch (err) {
+                throw err;
+            }
+        }
+    }
+}
+
+module.exports.endOrder = async (post, data) => {
+    console.log( 'endOrder', data );
+    if (post?.client) {
+        const client = post.client;
+        try {
+            await new Promise(res => setTimeout(res, 1000));
+            await waitCoils(client, new Map([
+                [addresses.END, 1]
+            ]));
+            await writeCoil(client, addresses.GATE_0_UP, 1, 6000);
+            await waitCoils(client, new Map([
+                [addresses.SENSOR_0, 0],
+                [addresses.SENSOR_1, 0],
+            ]));
+            return true;
+        }
+        catch (err) {
+            throw err;
+        }
+    }
+}

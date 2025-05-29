@@ -18,30 +18,50 @@ const readCoil = async (client, address) => new Promise((resolve, reject) => {
 })
 module.exports.readCoil = readCoil;
 
-const readCoils = async (client, addresses) => new Promise((resolve, reject) => {
-    addresses.sort();
-    const first = addresses[0];
-    const last  = addresses[addresses.length - 1];
-    const count = last - first + 1;
-    const coilsAddresses = new Map();
-    let address = first;
-    for (let i=0; i<count; i++) {
-        if (addresses.indexOf(address) !== -1) {
-            coilsAddresses.set(i, address);
-        }
-        address++;
+const readCoils = async (client, coils) => new Promise((resolve, reject) => {
+    let addresses = [];
+    if (Array.isArray(coils)) {
+        addresses = coils;
     }
-    client.readCoils(first, count, (err, data) => {
-        if (err) reject(err);
-        const result = new Map();
-        for (let i=0; i<data?.data?.length; i++) {
-            const address = coilsAddresses.get(i);
-            if (address !== undefined) {
-                result.set(address, data?.data?.[i] ? 1 : 0);
-            }
+    else if (typeof coils === 'object') {
+        for (const address of Object.values(coils)) {
+            addresses.push(address);
         }
-        resolve(result);
-    });
+    }
+    if (addresses.length) {
+        addresses.sort();
+        const first = addresses[0];
+        const last  = addresses[addresses.length - 1];
+        const count = last - first + 1;
+        const coilsAddresses = new Map();
+        let address = first;
+        for (let i=0; i<count; i++) {
+            if (addresses.indexOf(address) !== -1) {
+                coilsAddresses.set(i, address);
+            }
+            address++;
+        }
+        client.readCoils(first, count, (err, data) => {
+            if (err) reject(err);
+            const result = new Map();
+            for (let i=0; i<data?.data?.length; i++) {
+                const address = coilsAddresses.get(i);
+                if (address !== undefined) {
+                    result.set(address, data?.data?.[i] ? 1 : 0);
+                }
+            }
+            if (!Array.isArray(coils) && typeof coils === 'object') {
+                const keys = {};
+                for (const [key, address] of Object.entries(coils)) {
+                    keys[ key ] = result.get(address);
+                }
+                resolve(keys);
+            }
+            else {
+                resolve(result);
+            }
+        });
+    }
 })
 module.exports.readCoils = readCoils;
 
