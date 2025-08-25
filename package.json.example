@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "dotenv": "17.2.1",
+    "modbus-serial": "8.0.17",
+    "mqtt": "5.14.0",
+    "pigpio": "3.3.1"
+  }
+}

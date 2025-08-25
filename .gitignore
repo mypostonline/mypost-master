@@ -1,0 +1,7 @@
+*.local
+.idea
+node_modules
+
+/package.json
+/package-lock.json
+/run.js
