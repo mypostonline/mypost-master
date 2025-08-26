@@ -31,7 +31,6 @@ const connectMqtt = () => new Promise((resolve, reject) => {
         isConnected = false;
     });
 });
-//module.exports.connectMqtt = connectMqtt;
 
 const subscribeMqtt = (topic, callback, { qos = 0 } = {}) => new Promise((resolve, reject) => {
     connectMqtt().then(client => {
@@ -46,7 +45,6 @@ const subscribeMqtt = (topic, callback, { qos = 0 } = {}) => new Promise((resolv
         });
     });
 });
-//module.exports.subscribeMqtt = subscribeMqtt;
 
 const publishMqtt = (topic, message, { qos = 0 } = {}) => new Promise((resolve, reject) => {
     connectMqtt().then(client => {
@@ -57,7 +55,6 @@ const publishMqtt = (topic, message, { qos = 0 } = {}) => new Promise((resolve, 
         });
     });
 });
-//module.exports.publishMqtt = publishMqtt;
 
 module.exports = {
     connectMqtt,

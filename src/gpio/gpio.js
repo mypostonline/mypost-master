@@ -46,7 +46,7 @@ const pollingGpio = async (pins, callback) => {
         console.error('Polling gpio error:', error);
     }
     finally {
-        setTimeout(() => pollingGpio(pins, callback), 500);
+        setTimeout(() => pollingGpio(pins, callback), 5000);
     }
 }
 
@@ -60,30 +60,25 @@ const getPin = (pin) => {
 const readPin = (pin) => {
     const PIN = getPin(pin);
     if (PIN) {
-        return PIN.digitalRead();
+        return PIN.digitalRead() === 1 ? 0 : 1;
     }
 }
 
 const readPins = (pins) => {
-    return pins.map(pin => readPin(pin));
+    const result = {};
+    for (const pin of pins) {
+        result[pin] = readPin(pin);
+    }
+    return result;
 }
 
-const waitPins = async (pins, { interval = 500, timeout = 3600000 } = {}) => {
-    const keys = Array.from(pins.keys());
-    if (!keys.length) return false;
+const waitPins = async (data, { interval = 1000, timeout = 3600000 } = {}) => {
+    const pins = Object.keys(data);
     const deadline = Date.now() + timeout;
     while (Date.now() < deadline) {
         try {
-            const states = await readPins(keys);
-            let isReached = true;
-            let index = 0;
-            for (const [pin, state] of pins) {
-                if (!!states[index] !== !!state) {
-                    isReached = false;
-                }
-                index++;
-            }
-            if (isReached) {
+            const state = await readPins(pins);
+            if (JSON.stringify(data) === JSON.stringify(state)) {
                 return true;
             }
         }
@@ -98,7 +93,7 @@ const waitPins = async (pins, { interval = 500, timeout = 3600000 } = {}) => {
 const writePin = (pin, value, duration) => {
     const PIN = getPin(pin);
     if (PIN) {
-        PIN.digitalWrite(value);
+        PIN.digitalWrite(value === 1 ? 0 : 1);
         if (duration) {
             setTimeout(() => {
                 PIN.digitalWrite(value === 1 ? 0 : 1);
