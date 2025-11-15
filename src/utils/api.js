@@ -1,6 +1,6 @@
-const api = async (url, options = {}) => {
+export async function api (url, options = {}) {
     const API_URL = process.env.API_URL;
-    if(options.method === undefined){
+    if (options.method === undefined) {
         options.method = 'GET';
     }
     let init = {
@@ -21,7 +21,3 @@ const api = async (url, options = {}) => {
         throw error;
     }
 }
-
-module.exports = {
-    api
-};

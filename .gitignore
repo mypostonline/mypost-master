@@ -1,7 +1,7 @@
 *.local
 .idea
+.gitattributes
 node_modules
 
-/package.json
-/package-lock.json
+/config.js
 /run.js

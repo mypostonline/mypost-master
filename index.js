@@ -1,6 +1,6 @@
-require('dotenv').config();
+import "dotenv/config";
 
-const { runApp } = require('./run');
+import { runApp } from "./run.js";
 
 void runApp();
 

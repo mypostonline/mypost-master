@@ -1,0 +1,10 @@
+{
+    "name": "mypost-master",
+    "version": "1.0.0",
+    "type": "module",
+    "dependencies": {
+        "dotenv": "17.2.1",
+        "modbus-serial": "8.0.21",
+        "mqtt": "5.14.0"
+    }
+}

@@ -150,8 +150,11 @@ const getAddress = (address) => {
 
 const writeCoil = async (address, state, timeout = null) => {
     try {
+        console.log( 'writeCoil' );
         const client = await getClient();
         await client.writeCoil(getAddress(address), state);
+        console.log( 'writeCoil complete' );
+
         if (state && timeout) {
             setTimeout(async () => {
                 try {

@@ -3,6 +3,9 @@ const Gpio = require('pigpio').Gpio;
 const PINS = new Map();
 const ALIASES = new Map();
 
+const READ_MODE = 'L';
+const WRITE_MODE = 'H';
+
 const initGpio = async (params) => {
     if (params?.INPUT?.size) {
         params.INPUT.forEach((alias, pin) => {
@@ -14,7 +17,7 @@ const initGpio = async (params) => {
     if (params?.OUTPUT?.size) {
         params.OUTPUT.forEach((alias, pin) => {
             const PIN = new Gpio(pin, { mode: Gpio.OUTPUT });
-            PIN.digitalWrite(1);
+            PIN.digitalWrite(WRITE_MODE === 'H' ? 0 : 1);
             PINS.set(pin, PIN);
             ALIASES.set(alias, pin);
         });
@@ -23,7 +26,7 @@ const initGpio = async (params) => {
 
 const resetGpio = async () => {
     for (const [pin, PIN] of PINS) {
-        PIN.digitalWrite(1);
+        PIN.digitalWrite(WRITE_MODE === 'H' ? 0 : 1);
         PIN.mode(Gpio.INPUT);
     }
 }
@@ -60,7 +63,13 @@ const getPin = (pin) => {
 const readPin = (pin) => {
     const PIN = getPin(pin);
     if (PIN) {
-        return PIN.digitalRead() === 1 ? 0 : 1;
+        const value = PIN.digitalRead();
+        if (READ_MODE === 'H') {
+            return value === 1 ? 1 : 0;
+        }
+        else {
+            return value === 1 ? 0 : 1;
+        }
     }
 }
 
@@ -93,11 +102,14 @@ const waitPins = async (data, { interval = 1000, timeout = 3600000 } = {}) => {
 const writePin = (pin, value, duration) => {
     const PIN = getPin(pin);
     if (PIN) {
-        PIN.digitalWrite(value === 1 ? 0 : 1);
-        if (duration) {
-            setTimeout(() => {
-                PIN.digitalWrite(value === 1 ? 0 : 1);
-            }, duration);
+        if (WRITE_MODE === 'H') {
+            PIN.digitalWrite(value === 1 ? 1 : 0);
+        }
+        else {
+            PIN.digitalWrite(value === 1 ? 0 : 1);
+        }
+        if (value && duration) {
+            setTimeout(() => writePin(pin, 0), duration);
         }
     }
 }
