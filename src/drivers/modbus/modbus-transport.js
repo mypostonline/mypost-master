@@ -16,7 +16,7 @@ export class ModbusTransport {
             tcpPort: opts.tcpPort ?? 502,
             // Common
             id: opts.id ?? 1,
-            timeout: opts.timeout ?? 10_000,
+            timeout: opts.timeout ?? 2000,
             // reconnect / heartbeat
             reconnect: {min: 500, max: 10_000, factor: 1.8, ...(opts.reconnect || {})},
 
@@ -35,6 +35,8 @@ export class ModbusTransport {
         this._hbTimer = null;
         this._rcTimer = null;
         this._backoff = this.opts.reconnect.min;
+
+        this._lock = Promise.resolve();
     }
 
     async open () {
@@ -145,28 +147,47 @@ export class ModbusTransport {
         }
     }
 
-    async _exec (op, retries = 2) {
-        for (let i = 0; i <= retries; i++) {
-            try {
-                await this._ensureConnected();
-                const res = await op(this.client);
-                return {ok: true, data: res};
-            }
-            catch (e) {
-                const m = String(e?.message || "").toLowerCase();
-                const transient = m.includes("timeout") || m.includes("port is not open") ||
-                    m.includes("econn") || m.includes("socket") ||
-                    m.includes("eio") || m.includes("ebusy");
-                if (!transient || i === retries) {
-                    return {ok: false, error: e};
-                }
-                await this._close();
-                this.connected = false;
-                this._scheduleReconnect();
-                await new Promise(r => setTimeout(r, Math.min(this._backoff, 1000)));
-            }
+    async _withLock(fn) {
+        // ждём завершения предыдущей операции
+        const prev = this._lock;
+        let release;
+        this._lock = new Promise((resolve) => (release = resolve));
+        await prev;
+
+        try {
+            // выполняем переданную функцию “внутри замка”
+            return await fn();
+        } finally {
+            // освобождаем замок
+            release();
         }
-        return {ok: false, error: new Error("unknown")};
+    }
+
+    async _exec (op, retries = 2) {
+        return this._withLock(async () => {
+            for (let i = 0; i <= retries; i++) {
+                try {
+                    await this._ensureConnected();
+                    const res = await op(this.client);
+                    return { ok: true, data: res };
+                }
+                catch (e) {
+                    const m = String(e?.message || "").toLowerCase();
+                    const transient = m.includes("timeout") || m.includes("port is not open") ||
+                        m.includes("econn") || m.includes("socket") ||
+                        m.includes("eio") || m.includes("ebusy");
+                    if (!transient || i === retries) {
+                        return { ok: false, error: e };
+                    }
+                    await this._close();
+                    this.connected = false;
+                    this._scheduleReconnect();
+                    await new Promise(r => setTimeout(r, Math.min(this._backoff, 1000)));
+                }
+            }
+            await new Promise(r => setTimeout(r, 10));
+            return { ok: false, error: new Error("unknown") };
+        });
     }
 
     async readDiscreteInputs (addr, qty) {
@@ -193,12 +214,4 @@ export class ModbusTransport {
         return await this._exec(async (c) => (await c.writeCoil(addr, !!val)));
     }
 
-    async customFunction (addr, val) {
-        console.log( 'customFunction', addr, val );
-
-        this.client.customFunction(0x05, val);
-
-        //return await this._exec(async (c) => (await c.customFunction(addr, val)));
-        //return await this._exec(async (c) => (await c.writeCoil(addr, !!val)));
-    }
 }
