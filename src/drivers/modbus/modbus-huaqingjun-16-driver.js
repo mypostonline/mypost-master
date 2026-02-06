@@ -7,16 +7,12 @@ import CONFIG from "../../../config.js";
 
 let client = null;
 
-function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
-
 export async function initClient (params = {}) {
     setAliases();
     client = new ModbusTransport({
         mode: CONFIG.MODE,
         rtuPort: CONFIG.RTU_PORT,
-        id: 0xFF,
+        id: 1,
         ...params
     });
     return client.open();
@@ -24,9 +20,7 @@ export async function initClient (params = {}) {
 
 export async function setOutput (address, value, duration = 0) {
     try {
-        logger.debug(`setOutput`, getAddress(address), value, duration);
-        const index = getAddress(address);
-        await client.writeCoil(index, !!value);
+        await client.writeCoil(getAddress(address), !!value);
         if (value && duration) {
             setTimeout(async () => setOutput(address, 0), duration);
         }
